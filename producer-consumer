@@ -1,0 +1,76 @@
+# OS_qs
+#include <cstdio>
+#include <cstdlib>
+#include <pthread.h>
+#include <semaphore.h>
+#include <queue>
+
+#include <iostream>
+using namespace std;
+
+#define maxsize 5;
+#define slots 10;
+int item=1;
+
+pthread_mutex_t m;
+pthread_cond_t c;
+
+struct product{
+std::queue<int> q;
+void enqueue(int ele){
+q.push(ele);}
+int dequeue(){int ele = q.front();
+q.pop();
+return ele;}
+int size(){
+return q.size();}
+bool empty(){
+return q.empty();}
+};
+
+void * produce (void *args){
+product *p = (product *) args;
+pthread_mutex_lock(&m);
+pthread_t pid = pthread_self();
+while(p->size() == 5){
+// wait for slots to get empty
+pthread_cond_wait(&c,&m);}//releases mutex
+//int x = pid;
+cout<<"producer "<<pid<<" has produced a product "<<item<<"\n";
+p->enqueue(item++);
+pthread_cond_signal(&c);
+pthread_mutex_unlock(&m);
+}
+
+void * consume (void *args){
+product *p = (product *) args;
+pthread_mutex_lock(&m);
+pthread_t cid = pthread_self();
+while(p->size()==0){
+// wait for further more production
+pthread_cond_wait(&c,&m);}
+int x = p->dequeue();//item--;
+cout<<"the consumer "<<cid<<" has consumed "<<" product "<<x<<"\n";
+pthread_cond_signal(&c);
+pthread_mutex_unlock(&m); 
+}
+int main(){
+product * p = new product();
+
+pthread_mutex_init(&m,NULL);
+pthread_cond_init(&c,NULL);
+
+pthread_t producer[10],consumer[10];
+
+for(int i=0;i<10;i++){
+if(pthread_create(&producer[i],NULL,&produce,(void *)p)!=0){
+cout<<"error in creation of producer thread\n";exit(1);}
+if(pthread_create(&consumer[i],NULL,&consume,(void *)p)!=0){
+cout<<"error in creation of consumer thread\n";exit(1);}}
+
+for(int i=0;i<10;i++)
+pthread_join(producer[i],NULL);
+for(int i=0;i<10;i++)
+pthread_join(consumer[i],NULL);
+}
+
